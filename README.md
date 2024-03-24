@@ -1,1 +1,1 @@
-# AdvInv-Project
+# Advanced Investment - Trading Game
