@@ -58,14 +58,14 @@ def get_current_weights(df):
     df["DollarAmount"] = df['Quantity']*df['LastPrice']
     port_val = np.sum(df['DollarAmount'])
     cur_weights = df['DollarAmount']/port_val
-    dic = dict(zip(df['Symbol'], cur_weights))
+    dic = dict(zip(df['TKR'], cur_weights))
     
     return dic
 
 def rebalance_portfolio(cur_weights, new_weights, cur_port, threshold=0.01):
     merged_weights = pd.merge(cur_weights, new_weights, on="TKR")
     
-    merged_port = pd.merge(merged_weights, cur_port, left_on="TKR", right_on="Symbol")
+    merged_port = pd.merge(merged_weights, cur_port, on='TKR', how='left')
     
     merged_port['DollarAmount_cur'] = merged_port['Quantity'] * merged_port['LastPrice']
     
