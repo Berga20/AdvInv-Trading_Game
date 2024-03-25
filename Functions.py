@@ -84,3 +84,12 @@ def rebalance_portfolio(cur_weights, new_weights, cur_port, threshold=0.01):
     total_dollars = trades['DollarAmount_diff'].sum()
     
     return trades, total_trades, total_dollars
+
+def additional_cash_investments(df, remaining_cash):
+    
+    additional_investments = df['uptd_Weights'] * remaining_cash
+    additional_shares = np.floor(additional_investments / df['LastPrice'])
+    
+    result_df = pd.DataFrame({'TKR': df['TKR'], 'Additional_Shares': additional_shares})
+    
+    return result_df
