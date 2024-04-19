@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import yfinance as yf
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 def stk_ret(df, weekly=True):
     if (weekly==True):
@@ -93,3 +95,72 @@ def additional_cash_investments(df, remaining_cash):
     result_df = pd.DataFrame({'TKR': df['TKR'], 'Additional_Shares': additional_shares})
     
     return result_df
+
+# PERFORMANCE EVALUATION
+
+# Data
+
+def create_panel_data(tickers, start_date, end_date):
+    dfs = []  
+    
+    for ticker in tickers:
+        stock_data = yf.download(ticker, start=start_date, end=end_date)
+        
+        stock_data['Ticker'] = ticker
+        
+        dfs.append(stock_data)
+    
+    panel_data = pd.concat(dfs)
+    
+    return panel_data
+
+def create_portfolio_df(stock_df):
+    stock_df['Stock_Value'] = stock_df['Quantity'] * stock_df['Adj Close']
+    
+    stock_df['Value_USD'] = stock_df['Stock_Value']
+    stock_df.loc[stock_df['Currency'] != 'USD', 'Value_USD'] *= stock_df['USDEUR']
+    
+    portfolio_df = stock_df.groupby('Date')['Value_USD'].sum().reset_index()
+    
+    portfolio_df['Daily_RET'] = portfolio_df['Value_USD'].pct_change()
+    
+    return portfolio_df.set_index('Date')
+
+# Metrics
+
+def rets_plot(return_series1, return_series2, return_series3, initial_value=100):
+    
+    cumulative_returns1 = (1 + return_series1).cumprod() * initial_value
+    cumulative_returns2 = (1 + return_series2).cumprod() * initial_value
+    cumulative_returns3 = (1 + return_series3).cumprod() * initial_value
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(cumulative_returns1.index, cumulative_returns1, label='Portfolio')
+    plt.plot(cumulative_returns2.index, cumulative_returns2, label='Benchmark')
+    plt.plot(cumulative_returns3.index, cumulative_returns3, label='SP500')
+    plt.xticks(rotation=45)
+    plt.xlabel('Date')
+    plt.ylabel('Returns')
+    plt.title('Performance')
+    plt.legend()
+    plt.grid(False)
+    
+    date_formatter = mdates.DateFormatter('%Y-%m-%d')  # Define date format
+    plt.gca().xaxis.set_major_formatter(date_formatter) 
+    
+    plt.show()
+    
+def plot_portfolio_change(portfolio_values):
+    initial_value = portfolio_values.iloc[0]
+    percentage_change = ((portfolio_values - initial_value) / initial_value) * 100
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(percentage_change, color='blue')
+    plt.xticks(rotation=45)
+    plt.xlabel('Date')
+    plt.ylabel('Percentage Change (%)')
+    plt.title('Change in Portfolio Value (Relative to Initial)')
+    plt.grid(False)
+
+    plt.grid(True)
+    plt.show()
