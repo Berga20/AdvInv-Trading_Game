@@ -114,53 +114,125 @@ def create_panel_data(tickers, start_date, end_date):
     
     return panel_data
 
-def create_portfolio_df(stock_df):
-    stock_df['Stock_Value'] = stock_df['Quantity'] * stock_df['Adj Close']
-    
-    stock_df['Value_USD'] = stock_df['Stock_Value']
-    stock_df.loc[stock_df['Currency'] != 'USD', 'Value_USD'] *= stock_df['USDEUR']
-    
-    portfolio_df = stock_df.groupby('Date')['Value_USD'].sum().reset_index()
-    
-    portfolio_df['Daily_RET'] = portfolio_df['Value_USD'].pct_change()
-    
-    return portfolio_df.set_index('Date')
+# Plots
 
-# Metrics
-
-def rets_plot(return_series1, return_series2, return_series3, initial_value=100):
+def rets_plot_report(return_series1, return_series2, initial_value=100):
     
-    cumulative_returns1 = (1 + return_series1).cumprod() * initial_value
-    cumulative_returns2 = (1 + return_series2).cumprod() * initial_value
-    cumulative_returns3 = (1 + return_series3).cumprod() * initial_value
+    cumulative_returns1 = (1 + return_series1).cumprod()
+    cumulative_returns2 = (1 + return_series2).cumprod()
+    
+    
+    cumulative_returns1_norm = cumulative_returns1 / cumulative_returns1.iloc[0] * initial_value
+    cumulative_returns2_norm = cumulative_returns2 / cumulative_returns2.iloc[0] * initial_value
+
     
     plt.figure(figsize=(10, 6))
-    plt.plot(cumulative_returns1.index, cumulative_returns1, label='Portfolio')
-    plt.plot(cumulative_returns2.index, cumulative_returns2, label='Benchmark')
-    plt.plot(cumulative_returns3.index, cumulative_returns3, label='SP500')
+    
+    plt.plot(cumulative_returns1_norm.index, cumulative_returns1_norm, color='gold', label='Portfolio')
+    plt.plot(cumulative_returns2_norm.index, cumulative_returns2_norm, color='darkred', label='VICEX')
+    
+    plt.axhline(initial_value, linestyle='--', color='grey', linewidth=0.5)
+    
     plt.xticks(rotation=45)
-    plt.xlabel('Date')
-    plt.ylabel('Returns')
-    plt.title('Performance')
     plt.legend()
     plt.grid(False)
-    
-    date_formatter = mdates.DateFormatter('%Y-%m-%d')  # Define date format
-    plt.gca().xaxis.set_major_formatter(date_formatter) 
-    
     plt.show()
+
+def rets_plot(return_series1, return_series2, return_series3, return_series4, initial_value=100):
     
-def plot_portfolio_change(portfolio_values):
-    initial_value = portfolio_values.iloc[0]
-    percentage_change = ((portfolio_values - initial_value) / initial_value) * 100
+    cumulative_returns1 = (1 + return_series1).cumprod()
+    cumulative_returns2 = (1 + return_series2).cumprod()
+    cumulative_returns3 = (1 + return_series3).cumprod()
+    cumulative_returns4 = (1 + return_series4).cumprod()
+    
+    
+    cumulative_returns1_norm = cumulative_returns1 / cumulative_returns1.iloc[0] * initial_value
+    cumulative_returns2_norm = cumulative_returns2 / cumulative_returns2.iloc[0] * initial_value
+    cumulative_returns3_norm = cumulative_returns3 / cumulative_returns3.iloc[0] * initial_value
+    cumulative_returns4_norm = cumulative_returns4 / cumulative_returns4.iloc[0] * initial_value
     
     plt.figure(figsize=(10, 6))
-    plt.plot(percentage_change, color='blue')
+    
+    plt.plot(cumulative_returns1_norm.index, cumulative_returns1_norm, color='gold', label='Portfolio')
+    plt.plot(cumulative_returns2_norm.index, cumulative_returns2_norm, color='darkred', label='VICEX')
+    plt.plot(cumulative_returns3_norm.index, cumulative_returns3_norm, color='darkorange', label='SP500')
+    plt.plot(cumulative_returns4_norm.index, cumulative_returns4_norm, color='darkblue', label='SWDA')
+    
+    plt.axhline(initial_value, linestyle='--', color='grey', linewidth=0.5)
+    
     plt.xticks(rotation=45)
-    plt.xlabel('Date')
-    plt.ylabel('Percentage Change (%)')
-    plt.title('Change in Portfolio Value (Relative to Initial)')
+    plt.legend()
     plt.grid(False)
-
-    plt.grid(True)
     plt.show()
+    
+def weekly_returns_bar_chart(return_series1, return_series2):
+    df = pd.DataFrame({'Series1': return_series1, 'Series2': return_series2})
+    
+    start_date = max(df.index.min() for df in [return_series1, return_series2])
+    end_date = min(df.index.max() for df in [return_series1, return_series2])
+    
+    return_series1 = return_series1.loc[start_date:end_date]
+    return_series2 = return_series2.loc[start_date:end_date]
+    
+    weekly_returns = pd.DataFrame({
+        'Portfolio': return_series1.resample('W').sum(),
+        'VICEX': return_series2.resample('W').sum()
+    })
+    
+    plt.figure(figsize=(10, 6))
+    weekly_returns.plot(kind='bar', color=['gold', 'darkred'], alpha=0.8)
+
+    plt.xticks([])
+    plt.axhline(0, linestyle='--', color='grey', linewidth=0.5)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+    
+# Metrics
+
+def performance_metrics(return_series, benchmark_series=None, risk_free_rate=0):
+    
+    total_return = (1 + return_series).prod() - 1
+    
+    avg_daily_return = return_series.mean()
+    
+    std_return = return_series.std()
+    
+    sharpe_ratio = (total_return-risk_free_rate) / std_return
+    
+    if benchmark_series is not None:
+        total_outperformance = (return_series - benchmark_series).sum()
+    
+        avg_daily_outperformance = (return_series - benchmark_series).mean()
+    
+        tracking_error = (return_series - benchmark_series).std()
+    
+        information_ratio = (return_series - benchmark_series).mean() / tracking_error
+    
+        correlation_coefficient = return_series.corr(benchmark_series)
+    
+    best_day = return_series.idxmax(), return_series.max()
+    
+    worst_day = return_series.idxmin(), return_series.min()
+    
+    cumulative_returns = (1 + return_series).cumprod()
+    max_drawdown = (cumulative_returns / cumulative_returns.cummax() - 1).min()
+    
+    if benchmark_series is not None:
+        msquared = (sharpe_ratio * benchmark_series.std()) + risk_free_rate
+    
+    return pd.DataFrame({
+        'Total Return': total_return,
+        'Average Daily Return': avg_daily_return,
+        'Standard Deviation': std_return,
+        'Sharpe Ratio': sharpe_ratio,
+        'Total Outperformance': total_outperformance,
+        'Average Daily Outperformance': avg_daily_outperformance,
+        'Tracking Error': tracking_error,
+        'Information Ratio': information_ratio,
+        'Correlation Coefficient': correlation_coefficient,
+        'Best Day': best_day,
+        'Worst Day': worst_day,
+        'Maximum Drawdown': max_drawdown,
+        'M2': msquared
+    }).T
