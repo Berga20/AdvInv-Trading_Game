@@ -190,9 +190,9 @@ def weekly_returns_bar_chart(return_series1, return_series2):
     
 # Metrics
 
-def performance_metrics(return_series, benchmark_series=None, risk_free_rate=0):
+def performance_metrics(portfolio_value, return_series, benchmark_series=None, risk_free_rate=0):
     
-    total_return = (1 + return_series).prod() - 1
+    total_return = (portfolio_value[-1]-1000000)/1000000
     
     avg_daily_return = return_series.mean()
     
