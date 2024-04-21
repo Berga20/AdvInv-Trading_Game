@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import yfinance as yf
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 def stk_ret(df, weekly=True):
     if (weekly==True):
@@ -93,3 +95,138 @@ def additional_cash_investments(df, remaining_cash):
     result_df = pd.DataFrame({'TKR': df['TKR'], 'Additional_Shares': additional_shares})
     
     return result_df
+
+# PERFORMANCE EVALUATION
+
+# Data
+
+def create_panel_data(tickers, start_date, end_date):
+    dfs = []  
+    
+    for ticker in tickers:
+        stock_data = yf.download(ticker, start=start_date, end=end_date)
+        
+        stock_data['Ticker'] = ticker
+        
+        dfs.append(stock_data)
+    
+    panel_data = pd.concat(dfs)
+    
+    return panel_data
+
+# Plots
+
+def rets_plot_report(value_series1, value_series2, initial_value=10000):
+    
+    cumulative_returns1 = (value_series1 - value_series1[0]) / value_series1[0]
+    cumulative_returns2 = (value_series2 - value_series2[0]) / value_series2[0]
+    
+    cumulative_returns1_norm = (1+cumulative_returns1) * initial_value
+    cumulative_returns2_norm = (1+cumulative_returns2) * initial_value
+
+    plt.figure(figsize=(7, 3))
+    
+    plt.plot(cumulative_returns1_norm.index, cumulative_returns1_norm, linewidth=2, color='#0F4A65', label='Portfolio')
+    plt.plot(cumulative_returns2_norm.index, cumulative_returns2_norm, linewidth=2, color='#ADD8E6', label='Benchmark')
+    
+    plt.axhline(initial_value, linestyle='--', color='grey', linewidth=0.5)
+    
+    plt.xticks(rotation=45)
+    plt.legend()
+    plt.grid(False)
+    plt.show()
+
+def rets_plot(value_series1, value_series2, value_series3, value_series4, initial_value=10000):
+    
+    cumulative_returns1 = (value_series1 - value_series1[0]) / value_series1[0]
+    cumulative_returns2 = (value_series2 - value_series2[0]) / value_series2[0]
+    cumulative_returns3 = (value_series3 - value_series3[0]) / value_series3[0]
+    cumulative_returns4 = (value_series4 - value_series4[0]) / value_series4[0]
+    
+    cumulative_returns1_norm = (1+cumulative_returns1) * initial_value
+    cumulative_returns2_norm = (1+cumulative_returns2) * initial_value
+    cumulative_returns3_norm = (1+cumulative_returns3) * initial_value
+    cumulative_returns4_norm = (1+cumulative_returns4) * initial_value
+    
+    plt.figure(figsize=(7, 3))
+    
+    plt.plot(cumulative_returns1_norm.index, cumulative_returns1_norm, linewidth=2, color='#0F4A65', label='Portfolio')
+    plt.plot(cumulative_returns2_norm.index, cumulative_returns2_norm, linewidth=2, color='#ADD8E6', label='VICEX')
+    plt.plot(cumulative_returns3_norm.index, cumulative_returns3_norm, linewidth=2, color='darkorange', label='SP500')
+    plt.plot(cumulative_returns4_norm.index, cumulative_returns4_norm, linewidth=2, color='red', label='SWDA')
+    
+    plt.axhline(initial_value, linestyle='--', color='grey', linewidth=0.5)
+    
+    plt.xticks(rotation=45)
+    plt.legend()
+    plt.grid(False)
+    plt.show()
+    
+def weekly_returns_bar_chart(return_series1, return_series2):
+    df = pd.DataFrame({'Series1': return_series1, 'Series2': return_series2})
+    
+    start_date = max(df.index.min() for df in [return_series1, return_series2])
+    end_date = min(df.index.max() for df in [return_series1, return_series2])
+    
+    return_series1 = return_series1.loc[start_date:end_date]
+    return_series2 = return_series2.loc[start_date:end_date]
+    
+    weekly_returns = pd.DataFrame({
+        'Portfolio': return_series1.resample('W').sum(),
+        'Benchmark': return_series2.resample('W').sum()
+    })
+    
+    plt.figure(figsize=(7, 3))
+    weekly_returns.plot(kind='bar', color=['#0F4A65', '#ADD8E6'])
+
+    plt.xticks([])
+    plt.axhline(0, linestyle='--', color='grey', linewidth=0.5)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+    
+# Metrics
+
+def performance_metrics(portfolio_value, benchmark_value, return_series, benchmark_series=None, risk_free_rate=0):
+    
+    total_return = (portfolio_value[-1]-1000000)/1000000
+    total_return_bench = (benchmark_value[-1]-21.05)/21.05
+    
+    avg_daily_return = return_series.mean()
+    
+    std_return = return_series.std()
+    
+    sharpe_ratio = (total_return-risk_free_rate) / std_return
+    
+    if benchmark_series is not None:
+        total_outperformance = total_return-total_return_bench
+    
+        avg_daily_outperformance = (return_series - benchmark_series).mean()
+    
+        tracking_error = ((return_series - benchmark_series).var())**0.5
+    
+        information_ratio = total_outperformance / tracking_error
+    
+        correlation_coefficient = return_series.corr(benchmark_series)
+    
+    best_day = return_series.idxmax(), return_series.max()
+    
+    worst_day = return_series.idxmin(), return_series.min()
+    
+    cumulative_returns = (1 + return_series).cumprod()
+    max_drawdown = (cumulative_returns / cumulative_returns.cummax() - 1).min()
+    
+    return pd.DataFrame({
+        'Total Return': total_return,
+        'Average Daily Return': avg_daily_return,
+        'Standard Deviation': std_return,
+        'Sharpe Ratio': sharpe_ratio,
+        'Total Outperformance': total_outperformance,
+        'Average Daily Outperformance': avg_daily_outperformance,
+        'Tracking Error': tracking_error,
+        'Information Ratio': information_ratio,
+        'Correlation Coefficient': correlation_coefficient,
+        'Best Day': best_day,
+        'Worst Day': worst_day,
+        'Maximum Drawdown': max_drawdown,
+    }).T
